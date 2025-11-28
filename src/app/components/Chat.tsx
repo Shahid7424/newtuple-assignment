@@ -11,9 +11,9 @@ interface Message {
   timestamp: Date;
 }
 
-interface StreamResponse {
-  text?: string;
-}
+// interface StreamResponse {
+//   text?: string;
+// }
 
 interface SSEMessage {
   text?: string;
