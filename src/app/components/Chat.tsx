@@ -11,6 +11,10 @@ interface Message {
   timestamp: Date;
 }
 
+interface StreamResponse {
+  text?: string;
+}
+
 // Avatar Component
 const Avatar: React.FC<{ role: 'user' | 'assistant' }> = ({ role }) => (
   <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center ${
@@ -196,27 +200,38 @@ export default function Chat() {
           }
 
           try {
-            const json = JSON.parse(data);
+            const json = JSON.parse(data) as StreamResponse;
             const text = json.text || '';
             if (text) {
               fullContent += text;
               setStreamingContent(fullContent);
             }
-          } catch (e) {
-            console.error('Parse error:', e);
+          } catch (parseError) {
+            console.error('Parse error:', parseError);
           }
         }
       }
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('Request aborted');
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.log('Request aborted');
+        } else {
+          console.error('Stream error:', error);
+          setIsConnected(false);
+          setMessages(prev => [...prev, {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: `Error: ${error.message}`,
+            timestamp: new Date(),
+          }]);
+        }
       } else {
-        console.error('Stream error:', error);
+        console.error('Unknown error:', error);
         setIsConnected(false);
         setMessages(prev => [...prev, {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: `Error: ${error.message}`,
+          content: 'An unknown error occurred',
           timestamp: new Date(),
         }]);
       }

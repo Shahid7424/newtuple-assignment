@@ -1,5 +1,26 @@
-// app/api/chat/route.ts
 import { NextRequest } from "next/server";
+
+interface Message {
+  role: string;
+  content: string;
+}
+
+interface RequestBody {
+  message: string;
+  history?: Message[];
+}
+
+interface GeminiCandidate {
+  content?: {
+    parts?: Array<{
+      text?: string;
+    }>;
+  };
+}
+
+interface GeminiResponse {
+  candidates?: GeminiCandidate[];
+}
 
 export async function POST(req: NextRequest) {
   const encoder = new TextEncoder();
@@ -7,7 +28,7 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const { message, history } = await req.json();
+        const { message, history } = await req.json() as RequestBody;
 
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) throw new Error("GEMINI_API_KEY missing");
@@ -23,7 +44,7 @@ export async function POST(req: NextRequest) {
         }
         prompt += `\nUser: ${message}\nAssistant:`;
 
-        // FIXED: Use a currently available model (Gemini 2.0 or 2.5)
+        // Use Gemini 2.0 Flash model
         const modelName = "gemini-2.0-flash";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
@@ -67,7 +88,7 @@ export async function POST(req: NextRequest) {
             if (data === "[DONE]") continue;
 
             try {
-              const json = JSON.parse(data);
+              const json = JSON.parse(data) as GeminiResponse;
               const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
 
               if (text) {
@@ -83,10 +104,11 @@ export async function POST(req: NextRequest) {
 
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
-      } catch (error: any) {
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
         controller.enqueue(
           encoder.encode(
-            `data: ${JSON.stringify({ text: "Error: " + error.message })}\n\n`
+            `data: ${JSON.stringify({ text: "Error: " + errorMessage })}\n\n`
           )
         );
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
