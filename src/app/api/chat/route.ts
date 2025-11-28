@@ -28,7 +28,9 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const { message, history } = await req.json() as RequestBody;
+        // Type-safe parsing
+        const body: RequestBody = await req.json();
+        const { message, history } = body;
 
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) throw new Error("GEMINI_API_KEY missing");
@@ -44,11 +46,10 @@ export async function POST(req: NextRequest) {
         }
         prompt += `\nUser: ${message}\nAssistant:`;
 
-        // Use Gemini 2.0 Flash model
+        // Gemini endpoint
         const modelName = "gemini-2.0-flash";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
-        // Send request to Gemini API
         const response = await fetch(url, {
           method: "POST",
           headers: {
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
 
         if (!reader) throw new Error("No response body");
 
-        // Process SSE stream
+        // Stream SSE chunks
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -83,12 +84,13 @@ export async function POST(req: NextRequest) {
 
           for (const line of lines) {
             if (!line.trim() || !line.startsWith("data: ")) continue;
-            
-            const data = line.slice(6); // Remove "data: " prefix
+
+            const data = line.slice(6); // remove 'data: '
+
             if (data === "[DONE]") continue;
 
             try {
-              const json = JSON.parse(data) as GeminiResponse;
+              const json: GeminiResponse = JSON.parse(data);
               const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
 
               if (text) {
@@ -104,8 +106,10 @@ export async function POST(req: NextRequest) {
 
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({ text: "Error: " + errorMessage })}\n\n`
