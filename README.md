@@ -1,5 +1,8 @@
 # 🤖 Gemini Chat - Real-time AI Streaming Chat Application
 
+# here i am attached my live video link - 
+  https://newtuple-assignment.vercel.app/
+
 A modern, real-time chat application powered by Google's Gemini 2.0 Flash API with streaming responses, built with Next.js 14, TypeScript, and Tailwind CSS.
 
 ## 📋 Project Description
